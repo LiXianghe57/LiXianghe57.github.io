@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学舍查 - 高校宿舍查询平台</title>
+
+  <!-- 引入LeanCloud SDK（固定不变） -->
+  <script src="https://unpkg.com/leancloud-storage@4.5.0/dist/av-min.js"></script>
+
+  <!-- 引入图标库（丰富视觉元素） -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- LeanCloud初始化（已填入你的配置，无需修改！） -->
+  <script>
+    AV.init({
+      appId: 'vzvex3anmZVnZtgj7muK8a8k-gzGzoHsz',
+      appKey: 'WQkHYJhPzLN5Y4CmkNCywIWD',
+      serverURL: 'https://vzvex3an.lc-cn-n1-shared.com'
+    });
+    const Dorm = AV.Object.extend('dorms'); // 关联dorms表（全小写，与数据库一致）
+  </script>
+
+  <!-- 高颜值样式（新增登录表单样式，适配原有设计） -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    }
+
+    body {
+      background-color: #f8f9fa;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    /* 顶部导航栏（粘性定位，滚动不消失） */
+    .navbar {
+      background-color: #4299e1;
+      color: white;
+      padding: 16px 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo i {
+      font-size: 24px;
+    }
+
+    .nav-link {
+      color: white;
+      text-decoration: none;
+      margin-left: 24px;
+      font-size: 15px;
+      transition: opacity 0.3s;
+    }
+
+    .nav-link:hover {
+      opacity: 0.8;
+    }
+
+    /* 新增：登录表单样式（适配原有高颜值设计） */
+    .login-card {
+      max-width: 500px;
+      margin: 0 auto 30px;
+      background-color: white;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .login-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 24px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .login-title i {
+      color: #4299e1;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #4a5568;
+      font-weight: 500;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: #4299e1;
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background-color: #4299e1;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .login-btn:hover {
+      background-color: #3182ce;
+    }
+
+    .login-alert {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      text-align: center;
+      display: none;
+    }
+
+    .alert-success {
+      background-color: #f0fdf4;
+      color: #166534;
+      display: block;
+    }
+
+    .alert-error {
+      background-color: #fef2f2;
+      color: #dc2626;
+      display: block;
+    }
+
+    .user-info {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #2d3748;
+    }
+
+    .user-greeting {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .logout-btn {
+      padding: 8px 16px;
+      background-color: #f0f8fb;
+      color: #4299e1;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .logout-btn:hover {
+      background-color: #e0f2fe;
+    }
+
+    /* 页面主体（居中布局） */
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .page-title {
+      text-align: center;
+      margin-bottom: 20px; /* 缩减间距，适配登录表单 */
+      color: #2d3748;
+    }
+
+    .page-title h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .page-title p {
+      font-size: 16px;
+      color: #718096;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* 宿舍卡片列表（网格布局，适配所有设备） */
+    .dorm-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 28px;
+    }
+
+    /* 宿舍卡片样式（核心优化：无遮挡+高颜值） */
+    .dorm-card {
+      background-color: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .dorm-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    /* 地区徽章（右上角，不遮挡大学名称） */
+    .card-badge {
+      position: absolute;
+      top: 16px;
+      right: 16px; /* 右侧定位，彻底避免遮挡 */
+      background-color: #4299e1;
+      color: white;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 500;
+      z-index: 10;
+    }
+
+    .card-body {
+      padding: 24px;
+    }
+
+    /* 🔥 大学名称（突出显示，第一眼可见） */
+    .card-univ {
+      font-size: 24px;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #f0f8fb;
+    }
+
+    .card-info {
+      margin-bottom: 16px;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #4a5568;
+    }
+
+    .info-item i {
+      color: #4299e1;
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* 星星评分（直观美观） */
+    .card-score {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .score-stars {
+      color: #ed8936;
+      font-size: 18px;
+    }
+
+    .score-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #2d3748;
+    }
+
+    /* 详情按钮（hover交互效果） */
+    .detail-btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background-color: #f0f8fb;
+      color: #4299e1;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s;
+      margin-top: 8px;
+    }
+
+    .detail-btn:hover {
+      background-color: #4299e1;
+      color: white;
+    }
+
+    /* 底部信息栏（页面结构完整） */
+    .footer {
+      background-color: #2d3748;
+      color: white;
+      padding: 32px 20px;
+      margin-top: 80px;
+    }
+
+    .footer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .footer p {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    /* 新增：推荐页面样式（简单适配） */
+    .recommend-container {
+      background-color: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .recommend-title {
+      font-size: 24px;
+      color: #2d3748;
+      margin-bottom: 20px;
+    }
+
+    .recommend-desc {
+      font-size: 16px;
+      color: #718096;
+      margin-bottom: 24px;
+    }
+
+    .recommend-btn {
+      padding: 12px 24px;
+      background-color: #4299e1;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .recommend-btn:hover {
+      background-color: #3182ce;
+    }
+
+    /* 响应式适配（手机端友好） */
+    @media (max-width: 768px) {
+      .dorm-grid {
+        gap: 20px;
+      }
+
+      .page-title h1 {
+        font-size: 26px;
+      }
+
+      .navbar-container {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .nav-link {
+        margin: 0 8px;
+      }
+
+      .card-univ {
+        font-size: 22px; /* 手机端适当缩小，仍保持突出 */
+      }
+
+      .login-card {
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .recommend-container {
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部导航栏（动态切换登录/个人中心按钮） -->
+  <nav class="navbar">
+    <div class="navbar-container">
+      <div class="logo">
+        <i class="fas fa-building"></i>
+        <span>学舍查</span>
+      </div>
+      <div class="nav-links">
+        <a href="index.html" class="nav-link">首页</a>
+        <a href="recommend.html" class="nav-link">智能推荐</a>
+        <!-- 动态导航按钮：未登录显示“登录”，已登录显示“个人中心” -->
+        <a href="javascript:;" id="nav-auth-btn" class="nav-link">登录</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主体内容 -->
+  <div class="container">
+    <div class="page-title">
+      <h1>全国高校宿舍查询</h1>
+      <p>实时查看宿舍房型、设施配置及真实评分，帮你选到满意的宿舍</p>
+    </div>
+
+    <!-- 新增：登录表单（默认显示，登录后隐藏） -->
+    <div id="login-form" class="login-card">
+      <h3 class="login-title"><i class="fas fa-user-circle"></i> 请登录后查看宿舍数据</h3>
+      <div class="form-group">
+        <label class="form-label">用户名</label>
+        <input type="text" id="username" class="form-control" placeholder="输入用户名（如考生3）">
+      </div>
+      <div class="form-group">
+        <label class="form-label">密码</label>
+        <input type="password" id="password" class="form-control" placeholder="输入密码（如12345678）">
+      </div>
+      <button onclick="userLogin()" class="login-btn">登录</button>
+      <div id="login-alert" class="login-alert"></div>
+    </div>
+
+    <!-- 新增：登录成功后显示的用户信息（默认隐藏） -->
+    <div id="user-info" class="user-info" style="display: none;">
+      <div class="user-greeting" id="greeting"></div>
+      <button onclick="userLogout()" class="logout-btn">退出登录</button>
+    </div>
+
+    <!-- 宿舍卡片列表（数据渲染容器，默认隐藏，登录后显示） -->
+    <div class="dorm-grid" id="dorm-list" style="display: none;"></div>
+  </div>
+
+  <!-- 底部信息 -->
+  <footer class="footer">
+    <div class="footer-container">
+      <p>© 2025 学舍查 - 高校宿舍查询平台 | 课程作业专用</p>
+    </div>
+  </footer>
+
+  <!-- 核心逻辑（修复导航栏问题+登录状态同步） -->
+  <script>
+    // 页面加载时执行：检查登录状态+初始化导航按钮
+    window.onload = function() {
+      checkLoginStatus();
+      initNavBtn();
+    };
+
+    // 1. 初始化导航栏授权按钮（登录/个人中心）
+    function initNavBtn() {
+      const navBtn = document.getElementById('nav-auth-btn');
+      navBtn.onclick = function() {
+        const currentUser = AV.User.current();
+        if (!currentUser) {
+          // 未登录：显示登录表单（滚动到顶部）
+          document.getElementById('login-form').scrollIntoView({ behavior: 'smooth' });
+        } else {
+          // 已登录：跳转到个人中心（当前无页面，显示提示）
+          alert('个人中心功能待开发，当前已登录状态～');
+        }
+      };
+    }
+
+    // 2. 检查登录状态（页面加载时执行）
+    function checkLoginStatus() {
+      const currentUser = AV.User.current();
+      const navBtn = document.getElementById('nav-auth-btn');
+      
+      if (currentUser) {
+        // 已登录：更新导航按钮为“个人中心”，显示用户信息+加载宿舍数据
+        navBtn.textContent = '个人中心';
+        showUserInfo(currentUser);
+        loadDormData();
+      } else {
+        // 未登录：更新导航按钮为“登录”，显示登录表单
+        navBtn.textContent = '登录';
+        document.getElementById('login-form').style.display = 'block';
+        document.getElementById('user-info').style.display = 'none';
+        document.getElementById('dorm-list').style.display = 'none';
+      }
+    }
+
+    // 3. 登录功能（关联_User表）
+    async function userLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const alertEl = document.getElementById('login-alert');
+
+      // 表单校验
+      if (!username || !password) {
+        alertEl.className = 'login-alert alert-error';
+        alertEl.textContent = '用户名和密码不能为空！';
+        return;
+      }
+
+      try {
+        // 调用LeanCloud登录接口，自动查询_User表
+        const user = await AV.User.logIn(username, password);
+        alertEl.className = 'login-alert alert-success';
+        alertEl.textContent = '登录成功！正在加载宿舍数据...';
+        
+        // 延迟显示，更新导航按钮+加载数据
+        setTimeout(() => {
+          checkLoginStatus(); // 重新检查登录状态，同步导航栏
+          showUserInfo(user);
+          loadDormData();
+        }, 800);
+      } catch (error) {
+        // 错误处理
+        alertEl.className = 'login-alert alert-error';
+        if (error.message.includes('Invalid username or password')) {
+          alertEl.textContent = '登录失败：用户名或密码错误（示例：考生3/12345678）';
+        } else {
+          alertEl.textContent = '登录失败：' + error.message;
+        }
+      }
+    }
+
+    // 4. 退出登录功能（同步导航栏状态）
+    function userLogout() {
+      AV.User.logOut();
+      // 退出后更新导航栏+刷新状态
+      checkLoginStatus();
+      // 清空登录表单
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('login-alert').textContent = '';
+    }
+
+    // 5. 显示用户信息（登录成功后）
+    function showUserInfo(user) {
+      const username = user.get('username');
+      const identity = user.get('identity') || '普通用户';
+      
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('user-info').style.display = 'block';
+      document.getElementById('greeting').textContent = `欢迎，${username}（${identity}）`;
+    }
+
+    // 6. 原有宿舍数据渲染逻辑（保留不变）
+    async function loadDormData() {
+      const container = document.getElementById('dorm-list');
+      try {
+        const dormQuery = new AV.Query(Dorm);
+        const dormList = await dormQuery.find();
+        
+        container.innerHTML = '';
+        container.style.display = 'grid'; // 显示卡片列表
+
+        dormList.forEach((dorm) => {
+          const univName = dorm.get('univName') || '未知高校';
+          const type = dorm.get('type') || '未知房型';
+          const facility = dorm.get('facility') || '设施未公开';
+          const score = dorm.get('score') || 0;
+          const area = dorm.get('area') || '地区未公开';
+          const dormId = dorm.id;
+
+          // 星星评分渲染
+          const fullStars = Math.floor(score);
+          const hasHalfStar = score % 1 >= 0.5;
+          let starHtml = '';
+          for (let i = 0; i < fullStars; i++) {
+            starHtml += '<i class="fas fa-star"></i>';
+          }
+          if (hasHalfStar) {
+            starHtml += '<i class="fas fa-star-half-alt"></i>';
+          }
+          const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+          for (let i = 0; i < emptyStars; i++) {
+            starHtml += '<i class="far fa-star"></i>';
+          }
+
+          // 卡片HTML
+          const dormCard = `
+            <div class="dorm-card">
+              <div class="card-badge">${area}</div>
+              <div class="card-body">
+                <h3 class="card-univ">${univName}</h3>
+                <div class="card-info">
+                  <div class="info-item">
+                    <i class="fas fa-bed"></i>
+                    <span>房型：${type}</span>
+                  </div>
+                  <div class="info-item">
+                    <i class="fas fa-concierge-bell"></i>
+                    <span>设施：${facility}</span>
+                  </div>
+                </div>
+                <div class="card-score">
+                  <div class="score-stars">${starHtml}</div>
+                  <div class="score-value">${score.toFixed(1)}</div>
+                </div>
+                <a href="detail.html?id=${dormId}" class="detail-btn">
+                  <i class="fas fa-arrow-right"></i> 查看详细信息
+                </a>
+              </div>
+            </div>
+          `;
+
+          container.innerHTML += dormCard;
+        });
+      } catch (error) {
+        console.error('数据加载失败原因：', error.message);
+        container.style.display = 'block';
+        container.innerHTML = `
+          <div style="text-align: center; width: 100%; padding: 40px;">
+            <i class="fas fa-exclamation-circle" style="font-size: 48px; color: #e53e3e; margin-bottom: 16px;"></i>
+            <p style="font-size: 18px; color: #e53e3e;">数据加载失败！</p>
+            <p style="font-size: 14px; color: #718096; margin-top: 8px;">请检查LeanCloud配置或网络连接</p>
+          </div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
+

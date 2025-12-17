@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学舍查-登录</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 微软雅黑; }
+        .login-box { width: 90%; max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #eee; border-radius: 10px; }
+        .login-box h2 { text-align: center; color: #333; margin-bottom: 30px; }
+        .input-item { margin-bottom: 20px; }
+        .input-item label { display: block; color: #666; margin-bottom: 8px; font-size: 14px; }
+        .input-item input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        .login-btn { width: 100%; padding: 12px; background: #2f80ed; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>学舍查登录</h2>
+        <div class="input-item">
+            <label>用户名</label>
+            <input type="text" placeholder="请输入用户名">
+        </div>
+        <div class="input-item">
+            <label>密码</label>
+            <input type="password" placeholder="请输入密码">
+        </div>
+        <button class="login-btn" onclick="window.location.href='index.html'">登录</button>
+    </div>
+
+    <script>
+        // 简单验证：非空提示
+        const btn = document.querySelector('.login-btn');
+        btn.onclick = function() {
+            const name = document.querySelector('input[type="text"]').value;
+            const pwd = document.querySelector('input[type="password"]').value;
+            if (!name || !pwd) { alert('用户名/密码不能为空！'); }
+        }
+    </script>
+</body>
+</html>
