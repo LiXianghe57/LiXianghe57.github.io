@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学舍查-宿舍详情</title>
+    <script src="https://unpkg.com/leancloud-storage@4.5.0/dist/av-min.js"></script>
+    <style>
+        :root {
+            --primary: #4285F4;
+            --primary-hover: #3367D6;
+            --gray-100: #F5F7FA;
+            --gray-200: #E4E7EB;
+            --gray-300: #9AA0A6;
+            --gray-800: #202124;
+            --orange: #FF9800;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; 
+        }
+        body { 
+            background-color: var(--gray-100); 
+            color: var(--gray-800); 
+            line-height: 1.6; 
+            padding-bottom: 60px;
+        }
+        
+        /* 修复返回栏：双返回选项 */
+        .back-bar {
+            background: #fff;
+            padding: 16px 24px;
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .back-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.2s;
+        }
+        .back-link:hover {
+            color: var(--primary-hover);
+        }
+        .back-link.divider {
+            padding-left: 20px;
+            border-left: 1px solid var(--gray-200);
+        }
+        
+        /* 主体容器 */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px 24px;
+        }
+
+        /* 加载提示 */
+        .loading {
+            text-align: center;
+            padding: 60px 0;
+            color: var(--gray-300);
+            font-size: 16px;
+        }
+        
+        /* 详情卡片 */
+        .detail-card {
+            background: #fff;
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 24px;
+            display: none;
+        }
+        .dorm-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--gray-800);
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .campus-info {
+            font-size: 14px;
+            color: var(--gray-300);
+            margin-bottom: 8px;
+        }
+        
+        /* 信息模块 */
+        .info-section {
+            margin-bottom: 28px;
+        }
+        .info-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 14px;
+        }
+        .info-list {
+            display: grid;
+            gap: 12px;
+        }
+        .info-item {
+            font-size: 14px;
+            color: var(--gray-800);
+            display: flex;
+            gap: 8px;
+        }
+        .info-label {
+            color: var(--gray-300);
+            flex-shrink: 0;
+            width: 80px;
+        }
+        .score-item {
+            color: var(--orange);
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        /* 评价区域 */
+        .comment-card {
+            background: #fff;
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            box-shadow: var(--shadow-md);
+            display: none;
+        }
+        .comment-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .comment-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
+            outline: none;
+            font-size: 14px;
+            color: var(--gray-800);
+            resize: vertical;
+            min-height: 100px;
+        }
+        .comment-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.1);
+        }
+        .submit-btn {
+            padding: 12px 24px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .submit-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        /* 错误提示 */
+        .error {
+            text-align: center;
+            padding: 60px 24px;
+            background: #fff;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            color: #F44336;
+            font-size: 16px;
+            display: none;
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px 16px;
+            }
+            .back-bar {
+                padding: 16px 16px;
+                gap: 10px;
+            }
+            .back-link {
+                font-size: 14px;
+            }
+            .back-link.divider {
+                padding-left: 10px;
+            }
+            .detail-card, .comment-card {
+                padding: 24px 20px;
+            }
+            .info-label {
+                width: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 修复返回栏：添加返回推荐页+返回首页双选项 -->
+    <div class="back-bar">
+        <a href="recommend.html" class="back-link">
+            ← 返回推荐页
+        </a >
+        <a href="./index.html" class="back-link divider">
+            🏠 返回首页
+        </a >
+    </div>
+
+    <div class="container">
+        <!-- 加载提示 -->
+        <div class="loading" id="loading">正在加载宿舍详情...</div>
+        
+        <!-- 错误提示 -->
+        <div class="error" id="error">获取宿舍详情失败，请重试</div>
+        
+        <!-- 宿舍详情卡片 -->
+        <div class="detail-card" id="detail-card">
+            <div class="campus-info" id="campus-info"></div>
+            <h1 class="dorm-title" id="dorm-name"></h1>
+            
+            <div class="info-section">
+                <h3 class="info-section-title">基础信息</h3>
+                <div class="info-list">
+                    <div class="info-item">
+                        <span class="info-label">所在地区：</span>
+                        <span id="dorm-area"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">宿舍类型：</span>
+                        <span id="dorm-type"></span>
+                    </div>
+                    <div class="info-item score-item">
+                        <span class="info-label">综合评分：</span>
+                        <span id="dorm-score"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3 class="info-section-title">设施配置</h3>
+                <div class="info-list">
+                    <div class="info-item">
+                        <span class="info-label">核心设施：</span>
+                        <span id="dorm-facility"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 评价区域 -->
+        <div class="comment-card" id="comment-card">
+            <h2 class="comment-title">提交你的评价</h2>
+            <textarea class="comment-input" placeholder="分享你的住宿体验..."></textarea>
+            <button class="submit-btn">提交评价</button>
+        </div>
+    </div>
+
+    <script>
+        // 1. 初始化LeanCloud（你的配置）
+        AV.init({
+            appId: 'vzvex3anmZVnZtgj7muK8a8k-gzGzoHsz',
+            appKey: 'WQkHYJhPzLN5Y4CmkNCywIWD',
+            serverURL: 'https://vzvex3an.lc-cn-n1-shared.com'
+        });
+
+        // 2. 解析URL参数获取宿舍ID
+        function getUrlParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // 3. 提交评价功能
+        const submitBtn = document.querySelector('.submit-btn');
+        submitBtn.onclick = function() {
+            const comment = document.querySelector('.comment-input').value.trim();
+            if (comment) {
+                alert('评价提交成功，感谢贡献真实信息！');
+                document.querySelector('.comment-input').value = '';
+            } else {
+                alert('请输入评价内容～');
+            }
+        };
+
+        // 4. 核心：动态渲染宿舍详情（关联dorms和universities表）
+        async function renderDormDetail() {
+            const dormId = getUrlParam('id');
+            if (!dormId) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                return;
+            }
+
+            try {
+                // 第一步：查询dorms表获取宿舍数据
+                const dormQuery = new AV.Query('dorms');
+                const dorm = await dormQuery.get(dormId);
+                const dormArea = dorm.get('area');
+                const dormType = dorm.get('type');
+                const dormFacility = dorm.get('facility');
+                const dormScore = dorm.get('score');
+
+                // 第二步：根据宿舍的area查询universities表获取大学信息
+                const univQuery = new AV.Query('universities');
+                univQuery.equalTo('area', dormArea);
+                const univResults = await univQuery.find();
+                const univ = univResults[0] || { get: () => '未知大学' }; // 兼容无匹配的情况
+                const univName = univ.get('name');
+                const univCampus = univ.get('campus');
+
+                // 第三步：渲染到页面
+                document.getElementById('campus-info').textContent = `${univCampus} | ${dormArea}`;
+                document.getElementById('dorm-name').textContent = `${univName} 宿舍详情`;
+                document.getElementById('dorm-area').textContent = dormArea;
+                document.getElementById('dorm-type').textContent = dormType;
+                document.getElementById('dorm-score').textContent = `${dormScore.toFixed(1)}/5.0`;
+                document.getElementById('dorm-facility').textContent = dormFacility;
+
+                // 显示内容，隐藏加载/错误
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('detail-card').style.display = 'block';
+                document.getElementById('comment-card').style.display = 'block';
+
+            } catch (error) {
+                console.error('加载详情失败：', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        // 页面加载时执行渲染
+        renderDormDetail();
+    </script>
+</body>
+</html>

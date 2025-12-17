@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学舍查-AI智能推荐</title>
+    <script src="https://unpkg.com/leancloud-storage@4.5.0/dist/av-min.js"></script>
+    <style>
+        :root {
+            --primary: #4285F4;
+            --primary-hover: #3367D6;
+            --gray-100: #F5F7FA;
+            --gray-200: #E4E7EB;
+            --gray-300: #9AA0A6;
+            --gray-800: #202124;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; 
+        }
+        body { 
+            background-color: var(--gray-100); 
+            color: var(--gray-800); 
+            line-height: 1.6; 
+            padding-bottom: 60px;
+        }
+        
+        /* 返回栏 - 修复链接跳转 */
+        .back-bar {
+            background: #fff;
+            padding: 16px 24px;
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .back-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            /* 确保链接可点击，无遮挡 */
+            pointer-events: auto;
+            z-index: 101;
+        }
+        
+        /* 主体容器 */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 30px 24px;
+        }
+        .page-header {
+            text-align: center;
+            margin-bottom: 35px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-800);
+            margin-bottom: 10px;
+        }
+        .page-desc {
+            font-size: 15px;
+            color: var(--gray-300);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        /* 筛选表单卡片 */
+        .filter-card {
+            max-width: 550px;
+            margin: 0 auto 30px;
+            background: #fff;
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            box-shadow: var(--shadow-md);
+        }
+        .form-group {
+            margin-bottom: 22px;
+        }
+        .form-label {
+            display: block;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 10px;
+        }
+        .form-select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            color: var(--gray-800);
+            background: #fff;
+            transition: all 0.3s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%239AA0A6' viewBox='0 0 16 16'%3E%3Cpath d='M8 11.5l-6-6 1.5-1.5L8 8.5l4.5-4.5L14 5.5l-6 6z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 14px;
+        }
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.1);
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 8px;
+        }
+        .submit-btn:hover {
+            background: var(--primary-hover);
+        }
+        .submit-btn:disabled {
+            background: var(--gray-200);
+            color: var(--gray-300);
+            cursor: not-allowed;
+        }
+        
+        /* 结果区域 */
+        .result-wrap {
+            display: none;
+            margin-top: 10px;
+        }
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 16px 20px;
+            background: #fff;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-sm);
+        }
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+        .result-count {
+            font-size: 14px;
+            color: var(--primary);
+            font-weight: 500;
+        }
+        
+        /* 宿舍卡片列表 - 规整网格 */
+        .dorm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        .dorm-card {
+            background: #fff;
+            border-radius: var(--radius-md);
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--gray-200);
+        }
+        .dorm-univ {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        .dorm-info-list {
+            display: grid;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .dorm-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+        }
+        .info-label {
+            font-size: 14px;
+            color: var(--gray-300);
+        }
+        .info-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-800);
+        }
+        .dorm-score {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 12px;
+            border-top: 1px solid var(--gray-100);
+            margin-bottom: 16px;
+        }
+        .score-text {
+            font-size: 15px;
+            font-weight: 600;
+            color: #FF9800;
+        }
+        .detail-btn {
+            display: block;
+            text-align: center;
+            padding: 10px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .detail-btn:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+        
+        /* 无结果 */
+        .no-result {
+            max-width: 550px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: var(--radius-lg);
+            padding: 50px 24px;
+            box-shadow: var(--shadow-md);
+            text-align: center;
+            display: none;
+            border: 1px solid var(--gray-200);
+        }
+        .no-result-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 10px;
+        }
+        .no-result-desc {
+            font-size: 14px;
+            color: var(--gray-300);
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 24px;
+            }
+            .dorm-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px 16px;
+            }
+            .filter-card {
+                padding: 24px 20px;
+            }
+            .dorm-card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 修复返回首页链接：用./明确当前目录，确保跳转正常 -->
+    <div class="back-bar">
+        <a href="index.html" class="back-link">
+            ← 返回首页
+        </a >
+    </div>
+
+    <div class="container">
+        <div class="page-header">
+            <h1 class="page-title">AI智能推荐</h1>
+            <p class="page-desc">根据你的需求精准匹配，帮你找到心仪的高校宿舍</p >
+        </div>
+
+        <!-- 筛选表单 -->
+        <div class="filter-card">
+            <form id="recommend-form">
+                <div class="form-group">
+                    <label class="form-label">1. 就读地区</label>
+                    <select name="area" class="form-select" required>
+                        <option value="">请选择地区</option>
+                        <option value="江西·南昌市">江西·南昌市</option>
+                        <option value="浙江·杭州市">浙江·杭州市</option>
+                        <option value="广东·广州市">广东·广州市</option>
+                        <option value="湖北·武汉市">湖北·武汉市</option>
+                        <option value="四川·成都市">四川·成都市</option>
+                        <option value="北京·海淀区">北京·海淀区</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">2. 宿舍类型</label>
+                    <select name="type" class="form-select" required>
+                        <option value="">请选择房型</option>
+                        <option value="四人间">四人间</option>
+                        <option value="六人间">六人间</option>
+                        <option value="三人间">三人间</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">3. 必选设施</label>
+                    <select name="facility" class="form-select" required>
+                        <option value="">请选择设施</option>
+                        <option value="独立卫浴">独立卫浴</option>
+                        <option value="空调">空调</option>
+                        <option value="洗衣机">洗衣机</option>
+                        <option value="24h热水">24h热水</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">4. 最低评分要求</label>
+                    <select name="minScore" class="form-select" required>
+                        <option value="">请选择评分</option>
+                        <option value="3.5">3.5分及以上</option>
+                        <option value="4.0">4.0分及以上</option>
+                        <option value="4.5">4.5分及以上</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="submit-btn">开始智能匹配</button>
+            </form>
+        </div>
+
+        <!-- 推荐结果 -->
+        <div class="result-wrap" id="result-wrap">
+            <div class="result-header">
+                <h2 class="result-title">匹配结果</h2>
+                <span class="result-count" id="result-count">共 0 个宿舍</span>
+            </div>
+            <div class="dorm-grid" id="dorm-grid"></div>
+        </div>
+
+        <!-- 无结果 -->
+        <div class="no-result" id="no-result">
+            <h3 class="no-result-title">暂无匹配的宿舍数据</h3>
+            <p class="no-result-desc">试试更换筛选条件，重新匹配吧</p >
+        </div>
+    </div>
+
+    <script>
+        // 初始化LeanCloud
+        AV.init({
+            appId: 'vzvex3anmZVnZtgj7muK8a8k-gzGzoHsz',
+            appKey: 'WQkHYJhPzLN5Y4CmkNCywIWD',
+            serverURL: 'https://vzvex3an.lc-cn-n1-shared.com'
+        });
+
+        // 表单提交逻辑
+        document.getElementById('recommend-form').onsubmit = async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const area = formData.get('area');
+            const type = formData.get('type');
+            const facility = formData.get('facility');
+            const minScore = Number(formData.get('minScore'));
+
+            // 按钮状态
+            const btn = this.querySelector('.submit-btn');
+            btn.disabled = true;
+            btn.textContent = '匹配中...';
+
+            // 隐藏结果/无结果
+            document.getElementById('result-wrap').style.display = 'none';
+            document.getElementById('no-result').style.display = 'none';
+
+            try {
+                // 查询数据库
+                const query = new AV.Query('dorms');
+                query.equalTo('area', area);
+                query.equalTo('type', type);
+                query.contains('facility', facility);
+                query.greaterThanOrEqualTo('score', minScore);
+                query.descending('score');
+
+                const results = await query.find();
+
+                // 处理结果
+                const resultWrap = document.getElementById('result-wrap');
+                const resultCount = document.getElementById('result-count');
+                const dormGrid = document.getElementById('dorm-grid');
+                const noResult = document.getElementById('no-result');
+
+                if (results.length > 0) {
+                    resultCount.textContent = `共 ${results.length} 个宿舍`;
+                    dormGrid.innerHTML = '';
+
+                    results.forEach(dorm => {
+                        const score = dorm.get('score');
+                        // 宿舍卡片HTML
+                        const cardHtml = `
+                            <div class="dorm-card">
+                                <h3 class="dorm-univ">${dorm.get('univName')}</h3>
+                                <div class="dorm-info-list">
+                                    <div class="dorm-info-item">
+                                        <span class="info-label">就读地区：</span>
+                                        <span class="info-value">${dorm.get('area')}</span>
+                                    </div>
+                                    <div class="dorm-info-item">
+                                        <span class="info-label">宿舍类型：</span>
+                                        <span class="info-value">${dorm.get('type')}</span>
+                                    </div>
+                                    <div class="dorm-info-item">
+                                        <span class="info-label">配套设施：</span>
+                                        <span class="info-value">${dorm.get('facility')}</span>
+                                    </div>
+                                </div>
+                                <div class="dorm-score">
+                                    <span class="score-text">宿舍评分：${score.toFixed(1)}分</span>
+                                </div>
+                                <a href="./detail.html?id=${dorm.id}" class="detail-btn">查看详细信息</a >
+                            </div>
+                        `;
+                        dormGrid.innerHTML += cardHtml;
+                    });
+
+                    resultWrap.style.display = 'block';
+                } else {
+                    noResult.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('查询错误：', error);
+                alert(`查询失败！\n原因：${error.message}`);
+            } finally {
+                // 恢复按钮
+                btn.disabled = false;
+                btn.textContent = '开始智能匹配';
+            }
+        };
+    </script>
+</body>
+</html>
